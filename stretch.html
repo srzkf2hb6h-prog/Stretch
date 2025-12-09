@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+
+<!-- Блокируем масштабирование на iPhone -->
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0,
+               maximum-scale=1.0, user-scalable=no">
+
+<title>Растяжка — 8 минут</title>
+
+<style>
+/* Без прокрутки */
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #1c1c1e;
+    color: #f2f2f2;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Заголовок */
+#header {
+    background: #ffffff;
+    color: #000000;
+    padding: 10px 18px;
+    margin: 12px auto 2px auto;
+    border-radius: 12px;
+    width: fit-content;
+}
+
+#header h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+/* Центр */
+#center-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+#exercise-index {
+    font-size: 14px;
+    color: #aaa;
+    height: 18px;
+    margin-bottom: 6px;
+}
+
+/* Прогресс-точки */
+#progress-dots {
+    font-size: 22px;
+    letter-spacing: 4px;
+    margin-bottom: 12px;
+}
+
+#exercise {
+    font-size: 26px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+#emoji-box {
+    font-size: 52px;
+    margin-bottom: 10px;
+}
+
+/* Таймер */
+.timer-circle {
+    width: 200px;
+    height: 200px;
+    position: relative;
+    margin-bottom: 10px;
+}
+
+svg.timer-svg {
+    transform: rotate(-90deg);
+}
+
+#progress-ring {
+    stroke: #4CAF50;
+    stroke-width: 12;
+    fill: transparent;
+    transition: stroke-dashoffset 1s linear;
+}
+
+#background-ring {
+    stroke: #444;
+    stroke-width: 12;
+    fill: transparent;
+}
+
+#timer {
+    position: absolute;
+    top: 76px;
+    left: 0;
+    width: 100%;
+    font-size: 32px;
+    font-weight: bold;
+}
+
+/* Общий таймер */
+#total-time {
+    font-size: 15px;
+    color: #bbb;
+    margin-top: 4px;
+}
+
+/* Кнопка завершения */
+#restart-btn {
+    margin-top: 18px;
+    padding: 14px 28px;
+    font-size: 18px;
+    background: #4CAF50;
+    color: #fff;
+    border-radius: 10px;
+    border: none;
+}
+
+/* Низ экрана */
+#controls-wrapper {
+    padding-top: 10px;
+    padding-bottom: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.side-space {
+    width: 54px;
+    display: flex;
+    justify-content: center;
+}
+
+#controls-center {
+    display: flex;
+    gap: 10px;
+}
+
+button {
+    padding: 10px 18px;
+    background: #4CAF50;
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 17px;
+}
+
+#pause-btn { background: #FF9800; }
+#cancel-btn { background: #B00020; }
+
+.arrow-btn {
+    background: #3a3a3c;
+    min-width: 48px;
+}
+
+/* Вспомогательные */
+.hidden { display: none; }
+.invisible { visibility: hidden; }
+
+</style>
+
+<!-- Блокировка double-tap zoom -->
+<script>
+document.addEventListener('touchstart', function(e) {
+    if (e.touches.length > 1) e.preventDefault();
+}, { passive: false });
+
+let lastTouch = 0;
+document.addEventListener('touchend', function(e) {
+    const now = Date.now();
+    if (now - lastTouch <= 300) e.preventDefault();
+    lastTouch = now;
+}, false);
+</script>
+
+</head>
+<body>
+
+<div id="header">
+    <h1>Комплекс растяжки — 8 минут</h1>
+</div>
+
+<div id="center-area">
+
+    <div id="exercise-index">&nbsp;</div>
+
+    <!-- Индикатор прогресса -->
+    <div id="progress-dots">● ○ ○ ○ ○ ○ ○ ○</div>
+
+    <div id="exercise">Нажми «Старт»</div>
+    <div id="emoji-box">🙂</div>
+
+    <div class="timer-circle">
+        <svg class="timer-svg" width="200" height="200">
+            <circle id="background-ring" cx="100" cy="100" r="90"></circle>
+            <circle id="progress-ring" cx="100" cy="100" r="90"></circle>
+        </svg>
+        <div id="timer">0</div>
+    </div>
+
+    <!-- общий таймер -->
+    <div id="total-time">Общее время: 00:00</div>
+
+    <div id="hint">Нажми «Старт», чтобы начать комплекс.</div>
+
+    <button id="restart-btn" class="hidden">Начать сначала</button>
+
+</div>
+
+<div id="controls-wrapper">
+    <div class="side-space">
+        <button id="prev-btn" class="arrow-btn invisible">◀</button>
+    </div>
+
+    <div id="controls-center">
+        <button id="start-btn">Старт</button>
+        <button id="pause-btn" class="hidden">Пауза</button>
+        <button id="cancel-btn" class="hidden">Отмена</button>
+    </div>
+
+    <div class="side-space">
+        <button id="next-btn" class="arrow-btn invisible">▶</button>
+    </div>
+</div>
+
+<script>
+/* Список упражнений */
+const exercises = [
+    { name: "Разминка шеи", duration: 50, emoji: "🧍‍♂️🧠" },
+    { name: "Кошка–корова", duration: 60, emoji: "🐱🐄" },
+    { name: "Нитевая игла", duration: 60, emoji: "🧵" },
+    { name: "Растяжка трапеций", duration: 60, emoji: "💆‍♂️" },
+    { name: "Растяжка грудных мышц", duration: 60, emoji: "💪🫀" },
+    { name: "Детская поза", duration: 60, emoji: "🧘‍♂️" },
+    { name: "Растяжка боков", duration: 60, emoji: "↔️🧍‍♂️" },
+    { name: "Лёгкая лодочка", duration: 60, emoji: "🚣‍♂️" }
+];
+
+let current = 0;
+let timeLeft = 0;
+let interval;
+let paused = false;
+
+/* общий таймер */
+let totalSeconds = 0;
+let totalInterval;
+
+/* элементы */
+const circle       = document.getElementById("progress-ring");
+const startBtn     = document.getElementById("start-btn");
+const pauseBtn     = document.getElementById("pause-btn");
+const cancelBtn    = document.getElementById("cancel-btn");
+const prevBtn      = document.getElementById("prev-btn");
+const nextBtn      = document.getElementById("next-btn");
+const hintEl       = document.getElementById("hint");
+const indexEl      = document.getElementById("exercise-index");
+const restartBtn   = document.getElementById("restart-btn");
+const controlsWrap = document.getElementById("controls-wrapper");
+const totalTimeEl  = document.getElementById("total-time");
+const dotsEl       = document.getElementById("progress-dots");
+
+const radius = circle.r.baseVal.value;
+const circumference = 2 * Math.PI * radius;
+circle.style.strokeDasharray = `${circumference} ${circumference}`;
+circle.style.strokeDashoffset = circumference;
+
+function setProgress(p) {
+    circle.style.strokeDashoffset = circumference - p * circumference;
+}
+
+/* форматирование общего времени */
+function formatTime(sec) {
+    const m = Math.floor(sec / 60).toString().padStart(2, '0');
+    const s = (sec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+}
+
+/* запуск общего таймера */
+function startTotalTimer() {
+    totalSeconds = 0;
+    totalTimeEl.textContent = "Общее время: 00:00";
+
+    clearInterval(totalInterval);
+
+    totalInterval = setInterval(() => {
+        if (!paused) {
+            totalSeconds++;
+            totalTimeEl.textContent = "Общее время: " + formatTime(totalSeconds);
+        }
+    }, 1000);
+}
+
+/* остановка общего таймера */
+function stopTotalTimer() {
+    clearInterval(totalInterval);
+}
+
+/* звук */
+let audioCtx = null;
+function initAudio() {
+    if (!audioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) audioCtx = new AC();
+    }
+}
+
+function beep() {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.15);
+}
+
+/* вибрация (рабочая на iPhone) */
+function vibrate() {
+    if (navigator.vibrate) {
+        navigator.vibrate(120);
+        return;
+    }
+
+    // fallback через аудио-импульс
+    if (audioCtx) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.value = 80;
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+    }
+}
+
+/* кнопки */
+function showInitialControls() {
+    startBtn.classList.remove("hidden");
+    pauseBtn.classList.add("hidden");
+    cancelBtn.classList.add("hidden");
+    prevBtn.classList.add("invisible");
+    nextBtn.classList.add("invisible");
+    restartBtn.classList.add("hidden");
+    dotsEl.innerHTML = "● ○ ○ ○ ○ ○ ○ ○";
+    indexEl.innerHTML = "&nbsp;";
+    controlsWrap.style.display = "flex";
+}
+
+function showRunningControls() {
+    startBtn.classList.add("hidden");
+    pauseBtn.classList.remove("hidden");
+    cancelBtn.classList.remove("hidden");
+
+    if (current === 0) {
+        prevBtn.classList.add("invisible");
+        nextBtn.classList.remove("invisible");
+    } else if (current === exercises.length - 1) {
+        prevBtn.classList.remove("invisible");
+        nextBtn.classList.add("invisible");
+    } else {
+        prevBtn.classList.remove("invisible");
+        nextBtn.classList.remove("invisible");
+    }
+}
+
+/* прогресс-точки */
+function updateDots() {
+    if (current >= exercises.length) {
+        dotsEl.innerHTML = "&nbsp;";
+        return;
+    }
+
+    let out = "";
+    for (let i = 0; i < exercises.length; i++) {
+        out += (i === current) ? "● " : "○ ";
+    }
+    dotsEl.innerHTML = out.trim();
+}
+
+/* порядковый номер */
+function updateExerciseIndex() {
+    if (current >= exercises.length) {
+        indexEl.innerHTML = "&nbsp;";
+        return;
+    }
+    indexEl.textContent = `Упражнение ${current + 1} из ${exercises.length}`;
+}
+
+/* старт */
+function startWorkout() {
+    initAudio();
+    current = 0;
+    paused = false;
+    hintEl.innerText = "";
+    restartBtn.classList.add("hidden");
+
+    startTotalTimer();
+    runExercise();
+}
+
+/* старт сначала */
+restartBtn.onclick = () => {
+    restartBtn.classList.add("hidden");
+    startWorkout();
+};
+
+/* отмена */
+cancelBtn.onclick = () => {
+    clearInterval(interval);
+    stopTotalTimer();
+
+    paused = false;
+    current = 0;
+    totalSeconds = 0;
+    totalTimeEl.textContent = "Общее время: 00:00";
+
+    document.getElementById("exercise").innerText = "Нажми «Старт»";
+    document.getElementById("emoji-box").innerText = "🙂";
+    document.getElementById("timer").innerText = "0";
+    indexEl.innerHTML = "&nbsp;";
+    dotsEl.innerHTML = "● ○ ○ ○ ○ ○ ○ ○";
+
+    hintEl.innerText = "Нажми «Старт», чтобы начать комплекс.";
+
+    setProgress(0);
+    showInitialControls();
+};
+
+/* пауза */
+pauseBtn.onclick = () => {
+    paused = !paused;
+    pauseBtn.innerText = paused ? "Продолжить" : "Пауза";
+};
+
+/* стрелки */
+prevBtn.onclick = () => {
+    clearInterval(interval);
+    paused = false;
+    current = Math.max(0, current - 1);
+    runExercise();
+};
+
+nextBtn.onclick = () => {
+    clearInterval(interval);
+    paused = false;
+    current = Math.min(exercises.length - 1, current + 1);
+    runExercise();
+};
+
+/* выполнение упражнения */
+function runExercise() {
+    if (current >= exercises.length) {
+        finishWorkout();
+        return;
+    }
+
+    const ex = exercises[current];
+    document.getElementById("exercise").innerText = ex.name;
+    document.getElementById("emoji-box").innerText = ex.emoji;
+
+    updateExerciseIndex();
+    updateDots();
+    showRunningControls();
+    beep();
+    vibrate();
+
+    timeLeft = ex.duration;
+    updateTimer();
+    setProgress(0);
+
+    clearInterval(interval);
+    interval = setInterval(() => {
+        if (!paused) {
+            timeLeft--;
+            updateTimer();
+        }
+        if (timeLeft <= 0) {
+            clearInterval(interval);
+            current++;
+            runExercise();
+        }
+    }, 1000);
+}
+
+/* завершение */
+function finishWorkout() {
+    document.getElementById("exercise").innerText = "Готово!";
+    document.getElementById("emoji-box").innerText = "🙏";
+    document.getElementById("timer").innerText = "0";
+
+    indexEl.innerHTML = "&nbsp;";
+    dotsEl.innerHTML = "&nbsp;";
+    hintEl.innerText = "Комплекс завершён";
+
+    setProgress(1);
+
+    stopTotalTimer();
+
+    controlsWrap.style.display = "none";
+    restartBtn.classList.remove("hidden");
+}
+
+/* обновление таймера упражнения */
+function updateTimer() {
+    document.getElementById("timer").innerText = timeLeft;
+    const total = exercises[current].duration;
+    const percent = 1 - timeLeft / total;
+    const clamped = Math.min(Math.max(percent, 0), 1);
+    setProgress(clamped);
+}
+
+/* стартовое состояние */
+showInitialControls();
+
+startBtn.onclick = startWorkout;
+</script>
+
+</body>
+</html>
